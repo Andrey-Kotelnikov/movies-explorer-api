@@ -36,6 +36,9 @@ app.use(cookieParser()); // Сборщик кук
 app.use(bodyParser.json()); // Используем сборщик данных
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(helmet()); // Используем защиту
+
+app.use(requestLogger); // подключаем логгер запросов
+
 app.use(
   rateLimit({
     // Ограничитель кол-ва запросов
@@ -56,7 +59,6 @@ app.use(
   }),
 );
 
-app.use(requestLogger); // подключаем логгер запросов
 /*
 // Проверит приложение на возобновление после ошибки
 app.get("/crash-test", () => {

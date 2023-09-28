@@ -25,13 +25,15 @@ module.exports.updateUser = (req, res, next) => {
     {
       new: true,
       runValidators: true,
-      upsert: true,
     },
   )
     .orFail(new NotFoundError("Пользователь не найден"))
     .then((user) => res.send({ data: user }))
     .catch((err) => {
       console.log(err);
+      if (err.code === 11000) {
+        return next(new ExistError("Email уже используется"));
+      }
       if (err.name === "ValidationError") {
         return next(
           new ValidationError(
@@ -48,29 +50,32 @@ module.exports.updateUser = (req, res, next) => {
 // Создание пользователя
 module.exports.createUser = (req, res, next) => {
   const { email, name } = req.body;
-  bcrypt.hash(req.body.password, 10).then((hash) =>
-    User.create({ email, password: hash, name })
-      .then((user) => {
-        const { _id } = user;
-        res.status(201).send({ _id, email, name });
-      })
-      .catch((err) => {
-        console.log(err);
-        if (err.code === 11000) {
-          return next(new ExistError("Такой пользователь существует"));
-        }
-        if (err.name === "ValidationError") {
-          return next(
-            new ValidationError(
-              `${Object.values(err.errors)
-                .map((error) => error.message)
-                .join(", ")}`,
-            ),
-          );
-        }
-        return next(err);
-      }),
-  );
+  bcrypt
+    .hash(req.body.password, 10)
+    .then((hash) =>
+      User.create({ email, password: hash, name })
+        .then((user) => {
+          const { _id } = user;
+          res.status(201).send({ _id, email, name });
+        })
+        .catch((err) => {
+          console.log(err);
+          if (err.code === 11000) {
+            return next(new ExistError("Такой пользователь существует"));
+          }
+          if (err.name === "ValidationError") {
+            return next(
+              new ValidationError(
+                `${Object.values(err.errors)
+                  .map((error) => error.message)
+                  .join(", ")}`,
+              ),
+            );
+          }
+          return next(err);
+        }),
+    )
+    .catch(next);
 };
 
 // login
@@ -89,8 +94,11 @@ module.exports.login = (req, res, next) => {
           return next(new UnauthorizedError("Неправильные почта или пароль"));
           // throw new UnauthorizedError('Неправильные почта или пароль');
         }
+        if (err) {
+          return next(err);
+        }
         console.log(user._id);
-        const { _id, name, about, avatar } = user;
+        const { _id, name } = user;
         const token = jwt.sign({ _id: user._id }, JWT_SECRET, {
           expiresIn: "7d",
         });
@@ -100,7 +108,7 @@ module.exports.login = (req, res, next) => {
             httpOnly: true,
             sameSite: true,
           })
-          .send({ _id, email, name, about, avatar });
+          .send({ _id, email, name });
       });
     })
     .catch(next);
