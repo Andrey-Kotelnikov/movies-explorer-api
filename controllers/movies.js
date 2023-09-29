@@ -5,9 +5,10 @@ const ValidationError = require("../errors/validation-error");
 const NotFoundError = require("../errors/not-found-error");
 const AccessError = require("../errors/access-error");
 
-// Получение всех сохраненных фильмов
+// Получение всех сохраненных пользователем фильмов
 module.exports.getMovies = (req, res, next) => {
-  Movie.find({})
+  const { user } = req;
+  Movie.find({ owner: user })
     .then((movies) => res.send(movies))
     .catch(next);
 };
